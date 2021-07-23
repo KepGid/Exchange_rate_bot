@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import requests
-from time import time
-from datetime import datetime
 
 
 def parsing_currencies():
@@ -26,8 +24,6 @@ def parsing_currencies():
 
     dict_rate = response.json()
     timestamp = (dict_rate.get('timestamp'))  # get the time of the course request
-
-    print(str(timestamp) + '-' + str(datetime.fromtimestamp(time()).strftime("%Y-%m-%d, %H:%M:%S")))
 
     rate = dict_rate.pop('price')  # get a dictionary of currencies and their prices
     result = []  # declaring a list to write to the database
