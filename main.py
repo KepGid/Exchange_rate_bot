@@ -68,7 +68,7 @@ def send_chart(message):
     print(name_chart)
 
     if create_chart(name_chart) != -1:
-        url = "https://api.telegram.org/bot" + config.token + "/sendPhoto";
+        url = "https://api.telegram.org/bot" + config.token + "/sendPhoto"
         files = {'photo': open('chart.png', 'rb')}
         data = {'chat_id': message.chat.id}
         r = post(url, files=files, data=data)
