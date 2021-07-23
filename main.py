@@ -39,7 +39,7 @@ def send_list_currencies(message):
 
 
 @bot.message_handler(commands=['basecurrency'])
-def send_welcome(message):
+def command_base_currency(message):
     global price_first_currency
     update_bd()
 
@@ -58,7 +58,7 @@ def send_welcome(message):
 
 
 @bot.message_handler(commands=['quotedcurrency'])
-def send_welcome(message):
+def command_quoted_currency(message):
     global price_second_currency
     update_bd()
 
@@ -90,7 +90,7 @@ def send_chart(message):
 
 
 @bot.message_handler(commands=['help'])
-def send_welcome(message):
+def comand_help(message):
     bot.send_message(message.chat.id, '\nCommand list:'
                                       '\n/basecurrency currency name - change base currency; '
                                       '\n  Example: /basecurrency EUR  or /basecurrency eur'
@@ -102,7 +102,7 @@ def send_welcome(message):
 
 
 @bot.message_handler(content_types=['text'])
-def find_file_ids(message):
+def convert(message):
     global price_first_currency
     global price_second_currency
 
