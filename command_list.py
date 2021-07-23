@@ -3,6 +3,7 @@
 import sqlite3 as sql
 
 
+# we get a list for output consisting of currencies and their rates
 def command_list():
 
     con = sql.connect('currencies.db')

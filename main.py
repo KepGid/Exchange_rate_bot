@@ -15,6 +15,7 @@ from command_chart import create_chart
 
 bot = telebot.TeleBot(config.token)
 
+# default USD to USD ratio
 price_first_currency = 1
 price_second_currency = 1
 
@@ -34,22 +35,23 @@ def send_welcome(message):
 
 @bot.message_handler(commands=['list'])
 def send_list_currencies(message):
-    update_bd()
+    update_bd()  # if more than 10 minutes have passed then update the local database
     bot.send_message(message.chat.id, '\n'.join(command_list()))
 
 
 @bot.message_handler(commands=['basecurrency'])
 def command_base_currency(message):
     global price_first_currency
-    update_bd()
+    update_bd()  # if more than 10 minutes have passed then update the local database
 
     name_currency = message.text.replace('/basecurrency', '').replace(' ', '')
 
-    if name_currency == 'USD':
+    if name_currency.upper() == 'USD':
         price_first_currency = 1
     else:
         price_first_currency = get_price(name_currency)
 
+    # checking if there is such a currency
     if price_first_currency != -1:
         bot.send_message(message.chat.id, 'if the second currency is indicated, then enter the amount, '
                                           'otherwise specify the second currency via the /quotedcurrency command')
@@ -60,15 +62,16 @@ def command_base_currency(message):
 @bot.message_handler(commands=['quotedcurrency'])
 def command_quoted_currency(message):
     global price_second_currency
-    update_bd()
+    update_bd()  # if more than 10 minutes have passed then update the local database
 
     name_currency = message.text.replace('/quotedcurrency', '').replace(' ', '')
 
-    if name_currency == 'USD':
+    if name_currency.upper() == 'USD':
         price_second_currency = 1
     else:
         price_second_currency = get_price(name_currency)
 
+    # checking if there is such a currency
     if price_second_currency != -1:
         bot.send_message(message.chat.id, 'enter the amount: ')
     else:
@@ -77,6 +80,8 @@ def command_quoted_currency(message):
 
 @bot.message_handler(commands=['chart'])
 def send_chart(message):
+
+    update_bd()  # if more than 10 minutes have passed then update the local database
 
     name_chart = message.text.replace('/chart', '').replace(' ', '')
 
@@ -90,7 +95,7 @@ def send_chart(message):
 
 
 @bot.message_handler(commands=['help'])
-def comand_help(message):
+def command_help(message):
     bot.send_message(message.chat.id, '\nCommand list:'
                                       '\n/basecurrency currency name - change base currency; '
                                       '\n  Example: /basecurrency EUR  or /basecurrency eur'
@@ -106,17 +111,22 @@ def convert(message):
     global price_first_currency
     global price_second_currency
 
-    update_bd()
+    update_bd()  # if more than 10 minutes have passed then update the local database
 
     if is_number(message.text):
-        number = float(message.text)
-        coefficient = price_second_currency / price_first_currency
 
-        if number*coefficient > 1:
-            amount = '%.2f' % float(number * coefficient)
+        number = float(message.text)
+
+        # obtaining the ratio of the first currency to the second
+        coefficient = price_second_currency / price_first_currency
+        # convert currencies
+        amount = number * coefficient
+
+        if amount > 1:
+            bot.send_message(message.chat.id, '%.2f' % float(amount))
         else:
-            amount = '%.6f' % float(number * coefficient)
-        bot.send_message(message.chat.id, amount)
+            bot.send_message(message.chat.id, '%.6f' % float(amount))
+
     else:
         text = 'incorrect number entered'
         bot.send_message(message.chat.id, text)
@@ -130,6 +140,8 @@ def is_number(number):
         return False
 
 
+# function to check the last update of the exchange rate,
+# if more than 10 minutes have passed since the last update, then update the database
 def update_bd():
     timestamp = get_time()
     if (time() - timestamp) >= 600:
