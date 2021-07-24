@@ -65,7 +65,6 @@ def send_chart(message):
     update_bd()  # if more than 10 minutes have passed then update the local database
 
     name_chart = name_base_currency + name_second_currency
-    #print(name_chart)
 
     if create_chart(name_chart) != -1:
         url = "https://api.telegram.org/bot" + config.token + "/sendPhoto"
