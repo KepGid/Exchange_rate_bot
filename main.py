@@ -65,10 +65,10 @@ def send_chart(message):
     update_bd()  # if more than 10 minutes have passed then update the local database
 
     name_chart = name_base_currency + name_second_currency
-    print(name_chart)
+    #print(name_chart)
 
     if create_chart(name_chart) != -1:
-        url = "https://api.telegram.org/bot" + config.token + "/sendPhoto";
+        url = "https://api.telegram.org/bot" + config.token + "/sendPhoto"
         files = {'photo': open('chart.png', 'rb')}
         data = {'chat_id': message.chat.id}
         r = post(url, files=files, data=data)
@@ -128,7 +128,8 @@ def convert(message):
         if price_base_currency != -1:
             name_base_currency = name_currency
 
-            bot.send_message(message.chat.id, 'Currency pair '+name_base_currency+name_second_currency+'\nEnter the amount:')
+            bot.send_message(message.chat.id, 'Currency pair '
+                                              ''+name_base_currency+name_second_currency+'\nEnter the amount:')
             command_base_currency = False
         else:
             bot.send_message(message.chat.id, 'There is no such currency')
@@ -145,7 +146,8 @@ def convert(message):
         if price_second_currency != -1:
             name_second_currency = name_currency
 
-            bot.send_message(message.chat.id, 'Currency pair '+name_base_currency+name_second_currency+'\nEnter the amount:')
+            bot.send_message(message.chat.id, 'Currency pair '
+                                              ''+name_base_currency+name_second_currency+'\nEnter the amount:')
             command_second_currency = False
         else:
             bot.send_message(message.chat.id, 'There is no such currency')
