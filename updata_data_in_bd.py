@@ -38,7 +38,6 @@ def update_price_quoted_currency(user_id,  price_quoted):
 def update_change_base_currency(user_id,  change_base_currency):
     con = sql.connect('currencies.db')
     cur = con.cursor()
-    print('123')
     cur.execute('UPDATE users SET change_base == ? WHERE id_user == ?', (change_base_currency, user_id))
     con.commit()
     cur.close()
