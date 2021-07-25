@@ -4,28 +4,22 @@ import telebot
 from requests import post
 from time import time
 
-
 import config
 from command_list import command_list
-from create_bd import create_and_update
 from parsing_currencies import parsing_currencies
-from get_price_and_time import get_price, get_time
 from command_chart import create_chart
+
+from create_bd import create_and_update_currencies, create_and_update_users
+from get_data_of_bd import *
+from updata_data_in_bd import *
 
 
 bot = telebot.TeleBot(config.token)
 
-# default USD to USD ratio
-price_base_currency = 1
-price_second_currency = 1
-command_base_currency = False
-command_second_currency = False
-name_base_currency = 'USD'
-name_second_currency = 'USD'
-
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
+
     bot.send_message(message.chat.id, 'Hello, i will help convert one currency to another currency.'
                                       '\nBase currency USD '
                                       '\nCommand list:'
@@ -34,37 +28,59 @@ def send_welcome(message):
                                       '\n/quotedcurrency - change the quoted currency;'
                                       '\n/chart - will show the price chart for the last 7 days;'
                                       '\n/help - detailed information about commands and how to use them;')
-    create_and_update(parsing_currencies())
+    create_and_update_currencies(parsing_currencies())
+    user_id = message.from_user.id
+    create_and_update_users(user_id, 'USD', 'USD', 1, 1, False, False)
 
 
 @bot.message_handler(commands=['list'])
 def send_list_currencies(message):
-    update_bd()  # if more than 10 minutes have passed then update the local database
+
+    update_bd()  # if more than 10 minutes have passed, then update the exchange rate in the local database
+
+    # function check for cases if the command is entered after the command to change currencies
+    check_command(message.from_user.id)
+
     bot.send_message(message.chat.id, '\n'.join(command_list()))
 
 
 @bot.message_handler(commands=['basecurrency'])
 def command_base_currency(message):
-    global command_base_currency
-    command_base_currency = True
+
+    user_id = message.from_user.id
+    # check for cases of command entry after command /quotedcurrency
+    if get_change_base_currency(user_id) or get_change_quoted_currency(user_id):
+        update_change_quoted_currency(user_id, False)
+        update_change_base_currency(user_id, True)
+    else:
+        update_change_base_currency(user_id, True)
+
     bot.send_message(message.chat.id, 'Enter the name of the base currency')
 
 
 @bot.message_handler(commands=['quotedcurrency'])
 def command_quoted_currency(message):
-    global command_second_currency
-    command_second_currency = True
+
+    user_id = message.from_user.id
+    # check for cases of command entry after command /basecurrency
+    if get_change_base_currency(user_id) or get_change_quoted_currency(user_id):
+        update_change_base_currency(user_id, False)
+        update_change_quoted_currency(user_id, True)
+    else:
+        update_change_quoted_currency(user_id, True)
+
     bot.send_message(message.chat.id, 'Enter the name of the quoted currency')
 
 
 @bot.message_handler(commands=['chart'])
 def send_chart(message):
-    global name_base_currency
-    global name_second_currency
 
-    update_bd()  # if more than 10 minutes have passed then update the local database
+    update_bd()  # if more than 10 minutes have passed, then update the exchange rate in the local database
 
-    name_chart = name_base_currency + name_second_currency
+    # function check for cases if the command is entered after the command to change currencies
+    check_command(message.from_user.id)
+
+    name_chart = get_name_base_currency(message.from_user.id) + get_name_quoted_currency(message.from_user.id)
 
     if create_chart(name_chart) != -1:
         url = "https://api.telegram.org/bot" + config.token + "/sendPhoto"
@@ -77,6 +93,10 @@ def send_chart(message):
 
 @bot.message_handler(commands=['help'])
 def command_help(message):
+
+    # function check for cases if the command is entered after the command to change currencies
+    check_command(message.from_user.id)
+
     bot.send_message(message.chat.id, '\nCommand list:'
                                       '\n/list - display a list of all currencies and their exchange rates;'
                                       '\n/basecurrency   - to change the base currency; '
@@ -85,69 +105,55 @@ def command_help(message):
                                       'current currency pair for the last 7 days;')
 
 
-@bot.message_handler(commands=['stop'])
-def command_help(message):
-    global price_base_currency
-    global price_second_currency
-    global command_second_currency
-    global command_base_currency
-    global name_base_currency
-    global name_second_currency
-
-    price_base_currency = 1
-    price_second_currency = 1
-    command_base_currency = False
-    command_second_currency = False
-    name_base_currency = 'USD'
-    name_second_currency = 'USD'
-
-    bot.send_message(message.chat.id, 'goodbye')
-
-
 @bot.message_handler(content_types=['text'])
 def convert(message):
-    global price_base_currency
-    global price_second_currency
-    global command_second_currency
-    global command_base_currency
-    global name_base_currency
-    global name_second_currency
+    # if more than 10 minutes have passed, then update the exchange rate in the local database
+    update_bd()
+
+    user_id = message.from_user.id
+
+    price_base_currency = get_price_base_currency(user_id)
+    price_quoted_currency = get_price_quoted_currency(user_id)
 
     update_bd()  # if more than 10 minutes have passed then update the local database
 
-    if command_base_currency:
-        name_currency = message.text.replace(' ', '').upper()
+    if get_change_base_currency(user_id):
+        name_base_currency = message.text.replace(' ', '').upper()
 
-        if name_currency.upper() == 'USD':
+        if name_base_currency.upper() == 'USD':
             price_base_currency = 1
         else:
-            price_base_currency = get_price(name_currency)
+            price_base_currency = get_price(name_base_currency,)
 
         # checking if there is such a currency
         if price_base_currency != -1:
-            name_base_currency = name_currency
+            update_name_base_currency(user_id, name_base_currency)
 
             bot.send_message(message.chat.id, 'Currency pair '
-                                              ''+name_base_currency+name_second_currency+'\nEnter the amount:')
-            command_base_currency = False
+                                              ''+get_name_base_currency(user_id)+get_name_quoted_currency(user_id)
+                                              + '\nEnter the amount:')
+            update_change_base_currency(user_id, False)
+            update_price_base_currency(user_id, price_base_currency)
         else:
             bot.send_message(message.chat.id, 'There is no such currency')
 
-    elif command_second_currency:
-        name_currency = message.text.replace(' ', '').upper()
+    elif get_change_quoted_currency(user_id):
+        name_quoted_currency = message.text.replace(' ', '').upper()
 
-        if name_currency == 'USD':
-            price_second_currency = 1
+        if name_quoted_currency == 'USD':
+            price_quoted_currency = 1
         else:
-            price_second_currency = get_price(name_currency)
+            price_quoted_currency = get_price(name_quoted_currency)
 
         # checking if there is such a currency
-        if price_second_currency != -1:
-            name_second_currency = name_currency
+        if price_quoted_currency != -1:
+            update_name_quoted_currency(user_id, name_quoted_currency)
 
             bot.send_message(message.chat.id, 'Currency pair '
-                                              ''+name_base_currency+name_second_currency+'\nEnter the amount:')
-            command_second_currency = False
+                                              ''+get_name_base_currency(user_id)+get_name_quoted_currency(user_id)
+                                              + '\nEnter the amount:')
+            update_change_quoted_currency(user_id, False)
+            update_price_quoted_currency(user_id, price_quoted_currency)
         else:
             bot.send_message(message.chat.id, 'There is no such currency')
 
@@ -156,22 +162,29 @@ def convert(message):
 
             number = float(message.text)
 
-            # obtaining the ratio of the first currency to the second
-            coefficient = price_second_currency / price_base_currency
+            # obtaining the ratio of the first currency to the quoted
+            coefficient = price_quoted_currency / price_base_currency
             # convert currencies
             amount = number * coefficient
 
             if amount > 1:
-                text_message = name_base_currency+' : '+str('%.2f' % number) + \
-                               '\n'+name_second_currency + ' : ' + str('%.2f' % float(amount))
+                text_message = get_name_base_currency(user_id)+' : '+str('%.2f' % number) + \
+                               '\n'+get_name_quoted_currency(user_id) + ' : ' + str('%.2f' % float(amount))
             else:
-                text_message = name_base_currency+' : '+str('%.2f' % number) + \
-                               '\n'+name_second_currency + ' : ' + str('%.6f' % float(amount))
+                text_message = get_name_base_currency(user_id)+' : '+str('%.2f' % number) + \
+                               '\n'+get_name_quoted_currency(user_id) + ' : ' + str('%.6f' % float(amount))
             bot.send_message(message.chat.id, text_message)
 
         else:
             text = 'incorrect number entered'
             bot.send_message(message.chat.id, text)
+
+
+# check for cases if the command is entered after the command to change currencies
+def check_command(user_id):
+    if get_change_base_currency(user_id) or get_change_quoted_currency(user_id):
+        update_change_quoted_currency(user_id, False)
+        update_change_base_currency(user_id, False)
 
 
 def is_number(number):
@@ -183,11 +196,11 @@ def is_number(number):
 
 
 # function to check the last update of the exchange rate,
-# if more than 10 minutes have passed since the last update, then update the database
+# if more than 10 minutes have passed, then update the exchange rate in the local database
 def update_bd():
     timestamp = get_time()
     if (time() - timestamp) >= 600:
-        create_and_update(parsing_currencies())
+        create_and_update_currencies(parsing_currencies())
 
 
 if __name__ == '__main__':
